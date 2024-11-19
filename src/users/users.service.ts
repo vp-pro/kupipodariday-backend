@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, ConflictException } from '@nestjs/common';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { User } from './entities/user.entity';
@@ -16,12 +16,35 @@ export class UsersService {
   ) {}
 
   async create(createUserDto: CreateUserDto) {
+    const existingUser = await this.checkDuplicateUser(
+      createUserDto.email,
+      createUserDto.username,
+    );
+    if (existingUser) {
+      throw new ConflictException(
+        'Пользователь с таким email или username уже зарегистрирован',
+      );
+    }
+
     const user = await this.usersRepository.create(createUserDto);
     const pass = createUserDto.password;
     await bcrypt.hash(pass, 5).then((passHash: string) => {
       user.password = passHash;
     });
     return this.usersRepository.save(user);
+  }
+
+  async checkDuplicateUser(
+    email?: string,
+    username?: string,
+    userId?: number,
+  ) {
+    return await this.usersRepository.findOne({
+      where: [
+        { email: email, id: userId ? undefined : userId },
+        { username: username, id: userId ? undefined : userId },
+      ],
+    });
   }
 
   async findByName(username: string) {
