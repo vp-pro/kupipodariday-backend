@@ -107,9 +107,25 @@ export class WishesService {
   }
 
   async copy(idWish: number, user: User) {
-    const wish = await this.wishesRepository.findOneBy({ id: idWish });
+    const wish = await this.wishesRepository.findOne({
+      where: { id: idWish },
+      relations: { owner: true },
+    });
+
     if (!wish) {
       throw new HttpException('Подарок не найден', HttpStatus.NOT_FOUND);
+    }
+
+    // Проверка: Копировал ли пользователь этот подарок ранее
+    const existingCopy = await this.wishesRepository.findOne({
+      where: { owner: { id: user.id }, name: wish.name, link: wish.link },
+    });
+
+    if (existingCopy) {
+      throw new HttpException(
+        'Вы уже копировали этот подарок',
+        HttpStatus.CONFLICT,
+      );
     }
 
     const createWishDto: CreateWishDto = {
@@ -126,8 +142,11 @@ export class WishesService {
       raised: wish.raised,
       copied: wish.copied + 1,
     };
+
     await this.wishesRepository.save(newWish);
     await this.wishesRepository.update({ id: idWish }, updateWishDto);
+
     return {};
   }
+
 }

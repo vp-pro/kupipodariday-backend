@@ -14,12 +14,14 @@ import { AuthController } from './auth.controller';
   imports: [
     UsersModule,
     PassportModule,
-
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => {
         return {
-          secret: configService.get<string>('auth_token'),
+          secret: configService.get<string>('JWT_SECRET'),
+          signOptions: {
+            expiresIn: configService.get<string | number>('JWT_EXPIRES_IN', '1d'),
+          },
         };
       },
       inject: [ConfigService],
